@@ -60,7 +60,8 @@ exports.update=[
 
 exports.remove=async(req,res)=>{
  try {
-  const note=await Note.findOneAndDelete({_id:req.params.id,user:req.user.id});
+  const query=req.user.role==='admin'?{_id:req.params.id}:{_id:req.params.id,user:req.user.id};
+  const note=await Note.findOneAndDelete(query);
   if(!note) return res.status(404).json({error:'Note not found'});
   res.json({message:'Deleted'});
  } catch (err) {

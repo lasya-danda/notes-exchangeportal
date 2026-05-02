@@ -1,304 +1,330 @@
-
-import {useEffect,useState} from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../services/api';
-import toast, { Toaster } from 'react-hot-toast';
-import { motion } from 'framer-motion';
-import { FiLogOut, FiBook, FiDownload, FiHeart } from 'react-icons/fi';
+import { toast } from 'react-toastify';
+import { motion, AnimatePresence } from 'framer-motion';
+import Navbar from '../components/Navbar';
+import DashboardCards from '../components/DashboardCards';
 import NoteCard from '../components/NoteCard';
-import UploadForm from '../components/UploadForm';
-import SearchBar from '../components/SearchBar';
+import DragDropUpload from '../components/DragDropUpload';
+import { FiSearch, FiPlus, FiGrid, FiList } from 'react-icons/fi';
+import { useTheme } from '../context/ThemeContext';
 
-export default function Dashboard(){
- const [notes,setNotes]=useState([]);
- const [f,setF]=useState(null);
- const [title, setTitle] = useState('');
- const [subject, setSubject] = useState('');
- const [search, setSearch] = useState('');
- const [editing, setEditing] = useState(null);
- const [page, setPage] = useState(1);
- const [totalPages, setTotalPages] = useState(1);
- const [loading, setLoading] = useState(false);
- const [stats, setStats] = useState({total: 0, likes: 0, downloads: 0});
- const navigate = useNavigate();
+export default function Dashboard() {
+  const [notes, setNotes] = useState([]);
+  const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [viewMode, setViewMode] = useState('grid');
+  const [stats, setStats] = useState({ total: 0, uploads: 0, downloads: 0 });
+  const navigate = useNavigate();
+  const { darkMode } = useTheme();
 
- const fetchNotes = async(p=1) => {
-  setLoading(true);
-  try {
-   const r=await API.get(`/notes?page=${p}&search=${search}`);
-   setNotes(r.data.notes);
-   setTotalPages(r.data.pages);
-   setPage(p);
-   setStats({
-    total: r.data.total,
-    likes: r.data.notes.reduce((acc, n) => acc + n.likes.length, 0),
-    downloads: r.data.notes.reduce((acc, n) => acc + n.downloads, 0)
-   });
-  } catch (err) {
-   toast.error('Failed to load notes');
-  } finally {
-   setLoading(false);
-  }
- };
+  const fetchNotes = useCallback(async (p = 1) => {
+    setLoading(true);
+    try {
+      const r = await API.get(`/notes?page=${p}&search=${search}`);
+      setNotes(r.data.notes);
+      setTotalPages(r.data.pages);
+      setPage(p);
+      setStats(prev => ({ ...prev, total: r.data.total }));
+    } catch (err) {
+      toast.error('Failed to load notes');
+    } finally {
+      setLoading(false);
+    }
+  }, [search]);
 
- useEffect(()=>{fetchNotes();},[search]);
+  useEffect(() => {
+    fetchNotes();
+  }, [search, fetchNotes]);
 
- const upload=async(e)=>{
-  e.preventDefault();
-  if(!f || !title || !subject) return toast.error('Please fill all fields');
-  setLoading(true);
-  try {
-   const fd=new FormData();
-   fd.append('title',title);
-   fd.append('subject',subject);
-   fd.append('file',f);
-   await API.post('/notes',fd);
-   toast.success('Note uploaded successfully! 🎉');
-   fetchNotes();
-   setF(null);
-   setTitle('');
-   setSubject('');
-  } catch (err) {
-   toast.error(err.response?.data?.error || 'Upload failed');
-  } finally {
-   setLoading(false);
-  }
- };
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const r = await API.get('/auth/me');
+        setUser(r.data.user);
+      } catch (err) {
+        navigate('/');
+      }
+    };
+    fetchUser();
+  }, [navigate]);
 
- const updateNote = async(id) => {
-  try {
-   await API.put(`/notes/${id}`, {title: editing.title, subject: editing.subject});
-   toast.success('Note updated!');
-   fetchNotes();
-   setEditing(null);
-  } catch (err) {
-   toast.error('Update failed');
-  }
- };
+  const handleUpload = async ({ file, title, subject }) => {
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('title', title);
+      fd.append('subject', subject);
+      fd.append('file', file);
+      await API.post('/notes', fd);
+      toast.success('Note uploaded successfully!');
+      fetchNotes();
+    } catch (err) {
+      toast.error('Upload failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
- const deleteNote = async(id) => {
-  if(!confirm('Are you sure you want to delete this note?')) return;
-  try {
-   await API.delete(`/notes/${id}`);
-   toast.success('Note deleted');
-   fetchNotes();
-  } catch (err) {
-   toast.error('Delete failed');
-  }
- };
+  const handleUpdate = async (note) => {
+    try {
+      await API.put(`/notes/${note._id}`, { title: editing.title, subject: editing.subject });
+      toast.success('Note updated!');
+      fetchNotes();
+      setEditing(null);
+    } catch (err) {
+      toast.error('Update failed');
+    }
+  };
 
- const likeNote = async(id) => {
-  try {
-   await API.post(`/notes/${id}/like`);
-   fetchNotes();
-  } catch (err) {
-   toast.error('Like failed');
-  }
- };
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this note?')) return;
+    try {
+      await API.delete(`/notes/${id}`);
+      toast.success('Note deleted!');
+      fetchNotes();
+    } catch (err) {
+      toast.error('Delete failed');
+    }
+  };
 
- const rateNote = async(id, rating) => {
-  if(!rating) return;
-  try {
-   await API.post(`/notes/${id}/rate`, {rating});
-   toast.success('Note rated!');
-   fetchNotes();
-  } catch (err) {
-   toast.error('Rating failed');
-  }
- };
+  const handleLike = async (id) => {
+    try {
+      await API.post(`/notes/${id}/like`);
+      fetchNotes();
+    } catch (err) {
+      toast.error('Like failed');
+    }
+  };
 
- const downloadNote = async(id) => {
-  try {
-   const r = await API.get(`/notes/${id}/download`);
-   window.open(r.data.url, '_blank');
-  } catch (err) {
-   toast.error('Download failed');
-  }
- };
+  const handleRate = async (id, rating) => {
+    try {
+      await API.post(`/notes/${id}/rate`, { rating });
+      toast.success('Rated successfully!');
+      fetchNotes();
+    } catch (err) {
+      toast.error('Rating failed');
+    }
+  };
 
- const logout = async() => {
-  try {
-   await API.post('/auth/logout');
-   toast.success('Logged out');
-   navigate('/');
-  } catch (err) {
-   navigate('/');
-  }
- };
+  const handleDownload = async (id) => {
+    try {
+      const r = await API.get(`/notes/${id}/download`);
+      window.open(r.data.url, '_blank');
+    } catch (err) {
+      toast.error('Download failed');
+    }
+  };
 
- const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-   opacity: 1,
-   transition: { staggerChildren: 0.1 }
-  }
- };
+  const handleLogout = async () => {
+    try {
+      await API.post('/auth/logout');
+      localStorage.removeItem('userRole');
+      navigate('/');
+    } catch (err) {
+      navigate('/');
+    }
+  };
 
- const StatCard = ({ icon: Icon, label, value, color }) => (
-  <motion.div
-   whileHover={{ scale: 1.05 }}
-   className={`bg-gradient-to-br ${color} rounded-lg shadow-md p-6 text-white`}
-  >
-   <div className="flex items-center justify-between">
-    <div>
-     <p className="text-sm opacity-90">{label}</p>
-     <p className="text-3xl font-bold">{value}</p>
+  return (
+    <div className={`min-h-screen ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200'}`}>
+      <Navbar />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h1 className={`text-3xl md:text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            Welcome back, <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">{user?.name}</span>
+          </h1>
+          <p className={`mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Manage your study notes efficiently
+          </p>
+        </motion.div>
+
+        {/* Stats Cards */}
+        <DashboardCards
+          totalNotes={stats.total}
+          totalUploads={notes.filter(n => n.user?._id === user?._id).length}
+          totalDownloads={notes.reduce((acc, n) => acc + (n.downloads || 0), 0)}
+        />
+
+        {/* Upload Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-8"
+        >
+          <DragDropUpload onUpload={handleUpload} loading={loading} />
+        </motion.div>
+
+        {/* Search and View Toggle */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4"
+        >
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border flex-1 max-w-md ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <FiSearch className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search notes by title or subject..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`flex-1 bg-transparent outline-none ${darkMode ? 'text-white placeholder-gray-500' : 'text-gray-800 placeholder-gray-400'}`}
+            />
+          </div>
+          <div className={`flex items-center gap-2 p-1 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              <FiGrid />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              <FiList />
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Edit Modal */}
+        <AnimatePresence>
+          {editing && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setEditing(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className={`w-full max-w-md p-6 rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-2xl`}
+              >
+                <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Edit Note</h3>
+                <input
+                  type="text"
+                  value={editing.title}
+                  onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+                  className="w-full p-3 mb-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                  placeholder="Title"
+                />
+                <input
+                  type="text"
+                  value={editing.subject}
+                  onChange={(e) => setEditing({ ...editing, subject: e.target.value })}
+                  className="w-full p-3 mb-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                  placeholder="Subject"
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleUpdate(editing)}
+                    className="flex-1 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditing(null)}
+                    className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Notes Grid/List */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : (
+          <>
+            <motion.div
+              className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <AnimatePresence>
+                {notes.map((note) => (
+                  <NoteCard
+                    key={note._id}
+                    note={note}
+                    onEdit={setEditing}
+                    onDelete={handleDelete}
+                    onLike={handleLike}
+                    onRate={handleRate}
+                    onDownload={handleDownload}
+                    isAdmin={user?.role === 'admin'}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+
+            {notes.length === 0 && !loading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={`text-center py-20 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}
+              >
+                <p className="text-xl">No notes found</p>
+                <p className="mt-2">Upload your first note to get started!</p>
+              </motion.div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex justify-center items-center gap-2 mt-8 pb-8"
+              >
+                <button
+                  onClick={() => fetchNotes(page - 1)}
+                  disabled={page === 1}
+                  className={`px-4 py-2 rounded-lg ${darkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white border-gray-300'} border disabled:opacity-50 hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors`}
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => fetchNotes(p)}
+                    className={`px-4 py-2 rounded-lg transition-all ${p === page ? 'bg-indigo-600 text-white' : `${darkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white border-gray-300'} border hover:bg-indigo-50 dark:hover:bg-gray-700`}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => fetchNotes(page + 1)}
+                  disabled={page === totalPages}
+                  className={`px-4 py-2 rounded-lg ${darkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white border-gray-300'} border disabled:opacity-50 hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors`}
+                >
+                  Next
+                </button>
+              </motion.div>
+            )}
+          </>
+        )}
+      </main>
     </div>
-    <Icon className="w-12 h-12 opacity-30" />
-   </div>
-  </motion.div>
- );
-
- return(
-  <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-   <Toaster position="top-right" />
-
-   {/* Header */}
-   <motion.div
-    initial={{ value: 0 }}
-    animate={{ opacity: 1 }}
-    className="bg-white shadow-md border-b border-gray-200"
-   >
-    <div className="max-w-7xl mx-auto px-6 py-6">
-     <div className="flex justify-between items-center">
-      <motion.div
-       whileHover={{ scale: 1.05 }}
-       className="flex items-center gap-3"
-      >
-       <FiBook className="w-8 h-8 text-blue-600" />
-       <div>
-        <h1 className="text-3xl font-bold text-gray-800">Notes Portal</h1>
-        <p className="text-sm text-gray-600">Share and discover academic resources</p>
-       </div>
-      </motion.div>
-      <motion.button
-       whileHover={{ scale: 1.05 }}
-       whileTap={{ scale: 0.95 }}
-       onClick={logout}
-       className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-3 rounded-lg transition shadow-md"
-      >
-       <FiLogOut className="w-5 h-5" />
-       Logout
-      </motion.button>
-     </div>
-    </div>
-   </motion.div>
-
-   <div className="max-w-7xl mx-auto px-6 py-8">
-    {/* Stats */}
-    <motion.div
-     variants={containerVariants}
-     initial="hidden"
-     animate="visible"
-     className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
-    >
-     <StatCard
-      icon={FiBook}
-      label="Total Notes"
-      value={stats.total}
-      color="from-blue-500 to-blue-600"
-     />
-     <StatCard
-      icon={FiHeart}
-      label="Total Likes"
-      value={stats.likes}
-      color="from-red-500 to-red-600"
-     />
-     <StatCard
-      icon={FiDownload}
-      label="Total Downloads"
-      value={stats.downloads}
-      color="from-green-500 to-green-600"
-     />
-    </motion.div>
-
-    {/* Upload Form */}
-    <UploadForm
-     title={title}
-     subject={subject}
-     file={f}
-     loading={loading}
-     onTitleChange={(e) => setTitle(e.target.value)}
-     onSubjectChange={(e) => setSubject(e.target.value)}
-     onFileChange={(e) => setF(e.target.files[0])}
-     onSubmit={upload}
-    />
-
-    {/* Search Bar */}
-    <SearchBar
-     search={search}
-     onChange={(e) => setSearch(e.target.value)}
-    />
-
-    {/* Notes Grid */}
-    {loading ? (
-     <motion.div
-      animate={{ rotate: 360 }}
-      transition={{ repeat: Infinity, duration: 1 }}
-      className="flex justify-center items-center py-12"
-     >
-      <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full"></div>
-     </motion.div>
-    ) : notes.length === 0 ? (
-     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="text-center py-12"
-     >
-      <FiBook className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-      <p className="text-xl text-gray-600">No notes found. Upload one to get started! 📝</p>
-     </motion.div>
-    ) : (
-     <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
-     >
-      {notes.map(n=>(
-       <NoteCard
-        key={n._id}
-        note={n}
-        isEditing={editing && editing.id === n._id}
-        editData={editing}
-        onEdit={(id) => setEditing({id, title: n.title, subject: n.subject})}
-        onDelete={deleteNote}
-        onLike={likeNote}
-        onRate={rateNote}
-        onDownload={downloadNote}
-        onEditChange={setEditing}
-        onSave={updateNote}
-        onCancel={() => setEditing(null)}
-       />
-      ))}
-     </motion.div>
-    )}
-
-    {/* Pagination */}
-    {totalPages > 1 && (
-     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex justify-center gap-2 mt-8"
-     >
-      {Array.from({length:totalPages},(_,i)=>i+1).map(p=>(
-       <motion.button
-        key={p}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={()=>fetchNotes(p)}
-        className={`px-4 py-2 rounded-lg font-medium transition ${
-         p===page
-          ? 'bg-blue-600 text-white shadow-lg'
-          : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-600'
-        }`}
-       >
-        {p}
-       </motion.button>
-      ))}
-     </motion.div>
-    )}
-   </div>
-  </div>
- );
+  );
 }

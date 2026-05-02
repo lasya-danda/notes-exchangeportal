@@ -13,13 +13,14 @@ exports.register=[
   if(!errors.isEmpty()) return res.status(400).json({errors:errors.array()});
   try {
    const {name,email,password}=req.body;
-   const existing=await User.findOne({email});
-   if(existing) return res.status(400).json({error:'User already exists'});
+   const existing=await User.findOne({email:email.toLowerCase()});
+   if(existing) return res.status(400).json({error:'Email already registered'});
    const hash=await bcrypt.hash(password,10);
-   const user=await User.create({name,email,password:hash});
-   res.json({message:'Registered successfully'});
+   const user=await User.create({name,email:email.toLowerCase(),password:hash});
+   res.json({message:'Account created successfully! Please login.'});
   } catch (err) {
-   res.status(500).json({error:'Server error'});
+   console.error('Registration error:', err);
+   res.status(500).json({error:err.message || 'Registration failed'});
   }
  }
 ];
@@ -31,15 +32,16 @@ exports.login=[
   const errors=validationResult(req);
   if(!errors.isEmpty()) return res.status(400).json({errors:errors.array()});
   try {
-   const user=await User.findOne({email: req.body.email});
-   if(!user) return res.status(400).json({error:'User not found'});
+   const user=await User.findOne({email:req.body.email.toLowerCase()});
+   if(!user) return res.status(400).json({error:'Invalid email or password'});
    const ok=await bcrypt.compare(req.body.password,user.password);
-   if(!ok) return res.status(400).json({error:'Wrong password'});
-   const token=jwt.sign({id:user._id,role:user.role},process.env.JWT_SECRET,{expiresIn:'1d'});
-   res.cookie('token',token,{httpOnly:true,secure:false,maxAge:24*60*60*1000});
-   res.json({message:'Logged in',role:user.role});
+   if(!ok) return res.status(400).json({error:'Invalid email or password'});
+   const token=jwt.sign({id:user._id,role:user.role},process.env.JWT_SECRET,{expiresIn:'7d'});
+   res.cookie('token',token,{httpOnly:true,secure:false,maxAge:7*24*60*60*1000,sameSite:'lax'});
+   res.json({message:'Logged in successfully',role:user.role});
   } catch (err) {
-   res.status(500).json({error:'Server error'});
+   console.error('Login error:', err);
+   res.status(500).json({error:'Login failed'});
   }
  }
 ];

@@ -1,103 +1,183 @@
-
-import {useState} from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import API, { getApiErrorMessage } from '../services/api';
-import toast, { Toaster } from 'react-hot-toast';
-import { motion } from 'framer-motion';
-import { FiMail, FiLock, FiBook } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiMail, FiLock, FiLogIn, FiArrowRight } from 'react-icons/fi';
+import API from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
-export default function Login(){
- const [d,setD]=useState({email:'',password:''});
- const [loading, setLoading] = useState(false);
- const navigate = useNavigate();
- const login=async(e)=>{
-  e.preventDefault();
-  setLoading(true);
-  try {
-   const r=await API.post('/auth/login',d);
-   toast.success(r.data.message);
-   navigate('/dashboard');
-  } catch (err) {
-   toast.error(getApiErrorMessage(err, 'Login failed'));
-  } finally {
-   setLoading(false);
-  }
- };
- return(
-  <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 flex items-center justify-center p-4 relative overflow-hidden">
-   {/* Animated Background Elements */}
-   <motion.div className="absolute top-10 left-10 w-40 h-40 bg-white opacity-10 rounded-full" animate={{y: [0, 20, 0]}} transition={{duration: 4, repeat: Infinity}} />
-   <motion.div className="absolute bottom-10 right-10 w-60 h-60 bg-white opacity-10 rounded-full" animate={{y: [0, -20, 0]}} transition={{duration: 5, repeat: Infinity}} />
-   
-   <Toaster />
-   <motion.div initial={{opacity: 0}} animate={{opacity: 1}} className="relative z-10 w-full max-w-md">
-    <motion.div initial={{y: 20, opacity: 0}} animate={{y: 0, opacity: 1}} transition={{delay: 0.2}} className="text-center mb-8">
-     <motion.div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-lg rounded-full px-4 py-2 mb-4">
-      <FiBook className="text-white w-5 h-5" />
-      <span className="text-white font-semibold">Notes Portal</span>
-     </motion.div>
-     <h1 className="text-4xl font-bold text-white mb-2">Welcome Back</h1>
-     <p className="text-blue-100">Login to access your academic notes</p>
-    </motion.div>
-    
-    <form onSubmit={login} className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
-     {/* Email Input */}
-     <div className="mb-5">
-      <label className="block text-white text-sm font-semibold mb-2">Email Address</label>
-      <div className="relative">
-       <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-200 w-5 h-5" />
-       <input
-        value={d.email}
-        className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-100 focus:outline-none focus:border-white focus:ring-2 focus:ring-blue-300 transition"
-        placeholder="your.email@example.com"
-        type="email"
-        required
-        onChange={e=>setD({...d,email:e.target.value})}
-       />
+export default function Login() {
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const { darkMode, toggleDarkMode } = useTheme();
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await API.post('/auth/login', formData);
+      localStorage.setItem('userRole', res.data.role);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={`min-h-screen flex items-center justify-center p-4 relative overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-indigo-50 via-white to-purple-50'}`}>
+      {/* Animated background circles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{ duration: 8, repeat: Infinity }}
+          className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1.2, 1, 1.2],
+            opacity: [0.4, 0.6, 0.4],
+          }}
+          transition={{ duration: 10, repeat: Infinity }}
+          className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl"
+        />
       </div>
-     </div>
-     
-     {/* Password Input */}
-     <div className="mb-6">
-      <label className="block text-white text-sm font-semibold mb-2">Password</label>
-      <div className="relative">
-       <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-200 w-5 h-5" />
-       <input
-        value={d.password}
-        type="password"
-        className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-100 focus:outline-none focus:border-white focus:ring-2 focus:ring-blue-300 transition"
-        placeholder="••••••••"
-        required
-        onChange={e=>setD({...d,password:e.target.value})}
-       />
-      </div>
-     </div>
-     {/* Submit Button */}
-     <motion.button
-      type="submit"
-      disabled={loading}
-      whileHover={{scale: 1.02}}
-      whileTap={{scale: 0.98}}
-      className="w-full bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-     >
-      {loading ? (
-       <motion.span animate={{opacity: [1, 0.5, 1]}} transition={{duration: 1.5, repeat: Infinity}}>
-        Logging in...
-       </motion.span>
-      ) : (
-       'Login'
-      )}
-     </motion.button>
-     
-     {/* Register Link */}
-     <p className="mt-6 text-center text-blue-100">
-      Don't have an account?{' '}
-      <Link to="/register" className="text-white font-semibold hover:text-blue-200 transition">
-       Sign up here
-      </Link>
-     </p>
-    </form>
-   </motion.div>
-  </div>
- );
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className={`w-full max-w-md relative z-10 p-8 rounded-2xl shadow-2xl backdrop-blur-xl ${darkMode ? 'bg-gray-800/90 border border-gray-700' : 'bg-white/90 border border-gray-100'}`}
+      >
+        <div className="flex justify-between items-center mb-8">
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h1 className={`text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent`}>
+              Notes Portal
+            </h1>
+            <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Sign in to your account
+            </p>
+          </motion.div>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={toggleDarkMode}
+            className={`p-2 rounded-full ${darkMode ? 'bg-gray-700 text-yellow-300' : 'bg-gray-100 text-gray-600'}`}
+            aria-label="Toggle dark mode"
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </motion.button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="mb-4"
+          >
+            <label className={`block mb-2 text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Email
+            </label>
+            <div className="relative">
+              <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="input-field"
+                placeholder="Enter your email"
+              />
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="mb-6"
+          >
+            <label className={`block mb-2 text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Password
+            </label>
+            <div className="relative">
+              <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="input-field"
+                placeholder="Enter your password"
+              />
+            </div>
+          </motion.div>
+
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-4 p-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm overflow-hidden"
+              >
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                Login
+                <FiArrowRight />
+              </>
+            )}
+          </motion.button>
+        </form>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className={`mt-6 text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}
+        >
+          Don't have an account?{' '}
+          <Link to="/register" className="text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1">
+            Register here
+            <FiArrowRight className="text-sm" />
+          </Link>
+        </motion.p>
+      </motion.div>
+    </div>
+  );
 }

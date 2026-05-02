@@ -1,113 +1,136 @@
 import { motion } from 'framer-motion';
-import { FiDownload, FiEdit2, FiTrash2, FiHeart, FiStar } from 'react-icons/fi';
-import { AiFillHeart } from 'react-icons/ai';
+import { FiDownload, FiEdit, FiTrash2, FiHeart, FiStar, FiFileText, FiCalendar } from 'react-icons/fi';
+import { useTheme } from '../context/ThemeContext';
 
-export default function NoteCard({ note, onEdit, onDelete, onLike, onRate, onDownload, isEditing, editData, onEditChange, onSave, onCancel }) {
-  const avgRating = note.ratings.length > 0 ? (note.ratings.reduce((acc, r) => acc + r.rating, 0) / note.ratings.length).toFixed(1) : 0;
+export default function NoteCard({ note, onEdit, onDelete, onLike, onRate, onDownload, isAdmin }) {
+  const { darkMode } = useTheme();
+
+  const getInitials = (name) => name ? name.charAt(0).toUpperCase() : '?';
+
+  const avgRating = note.ratings?.length
+    ? (note.ratings.reduce((acc, r) => acc + r.rating, 0) / note.ratings.length).toFixed(1)
+    : null;
+
+  const fileType = note.file?.split('.').pop()?.toUpperCase() || 'DOC';
+
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -5 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -8 }}
       transition={{ duration: 0.3 }}
-      className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
+      className="rounded-2xl p-[2px] bg-gradient-to-r from-indigo-500 to-purple-600 shadow-lg hover:shadow-2xl transition-all duration-300"
     >
-      {isEditing ? (
-        <div className="p-6">
-          <input
-            value={editData.title}
-            onChange={(e) => onEditChange({ ...editData, title: e.target.value })}
-            placeholder="Title"
-            className="w-full border-2 border-blue-300 rounded p-2 mb-3 focus:outline-none focus:border-blue-500"
-          />
-          <input
-            value={editData.subject}
-            onChange={(e) => onEditChange({ ...editData, subject: e.target.value })}
-            placeholder="Subject"
-            className="w-full border-2 border-blue-300 rounded p-2 mb-4 focus:outline-none focus:border-blue-500"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={() => onSave(note._id)}
-              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition"
-            >
-              Save
-            </button>
-            <button
-              onClick={onCancel}
-              className="flex-1 bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg font-medium transition"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="p-6">
-          {/* Header */}
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-gray-800 mb-1">{note.title}</h3>
-            <p className="text-sm text-blue-600 font-medium mb-2">{note.subject}</p>
-            <p className="text-xs text-gray-500">By {note.user.name}</p>
-          </div>
-
-          {/* Stats */}
-          <div className="flex gap-3 mb-4 text-sm text-gray-600 border-y border-gray-200 py-3">
-            <div className="flex items-center gap-1">
-              <AiFillHeart className="text-red-500" />
-              <span>{note.likes.length}</span>
+      <div className={`group h-full rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className="p-5">
+          {/* Header with file type badge and date */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-1 text-xs font-bold rounded bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+                {fileType}
+              </span>
+              <span className={`flex items-center gap-1 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <FiCalendar size={12} />
+                {formatDate(note.createdAt)}
+              </span>
             </div>
-            <div className="flex items-center gap-1">
-              <FiStar className="text-yellow-500" />
-              <span>{avgRating}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <FiDownload className="text-green-500" />
-              <span>{note.downloads}</span>
+            <div className={`px-2 py-1 rounded-full text-xs font-medium ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+              {note.user?.name || 'Unknown'}
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 flex-wrap">
+          {/* Title and Subject */}
+          <h3 className={`text-lg font-bold mb-2 line-clamp-2 ${darkMode ? 'text-white group-hover:text-indigo-400' : 'text-gray-800 group-hover:text-indigo-600'} transition-colors`}>
+            {note.title}
+          </h3>
+          <p className={`text-sm mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            {note.subject}
+          </p>
+
+          {/* Stats row */}
+          <div className="flex items-center gap-4 mb-5">
+            {/* Likes */}
             <button
               onClick={() => onLike(note._id)}
-              className="flex items-center gap-1 flex-1 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition"
+              className="flex items-center gap-1.5 text-sm hover:scale-110 transition-transform"
             >
-              <FiHeart className="w-4 h-4" />
+              <FiHeart className={`${note.likes?.includes(note._id) ? 'fill-red-500 text-red-500' : 'text-red-400'}`} size={16} />
+              <span className="text-gray-600 dark:text-gray-400">{note.likes?.length || 0}</span>
+            </button>
+
+            {/* Downloads */}
+            <div className="flex items-center gap-1.5 text-sm text-blue-500">
+              <FiDownload size={16} />
+              <span className="text-gray-600 dark:text-gray-400">{note.downloads || 0}</span>
+            </div>
+
+            {/* Rating */}
+            {avgRating && (
+              <div className="flex items-center gap-1 text-sm text-yellow-500">
+                <FiStar className="fill-yellow-400" size={16} />
+                <span className="text-gray-600 dark:text-gray-400">{avgRating}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button
+              onClick={() => onLike(note._id)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            >
+              <FiHeart size={14} />
               Like
             </button>
+
             <select
-              onChange={(e) => onRate(note._id, e.target.value)}
-              defaultValue=""
-              className="flex-1 bg-yellow-50 border border-yellow-300 text-yellow-700 px-3 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              onChange={(e) => {
+                if (e.target.value) {
+                  onRate(note._id, e.target.value);
+                  e.target.value = '';
+                }
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer
+                ${darkMode ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600' : 'bg-gray-50 border-gray-300 hover:bg-gray-100'} transition-colors`}
             >
-              <option value="">Rate</option>
-              <option value="1">⭐ 1</option>
-              <option value="2">⭐ 2</option>
-              <option value="3">⭐ 3</option>
-              <option value="4">⭐ 4</option>
-              <option value="5">⭐ 5</option>
+              <option value="">⭐ Rate</option>
+              {[1,2,3,4,5].map(r => <option key={r} value={r}>{r} Star{r>1?'s':''}</option>)}
             </select>
+
             <button
               onClick={() => onDownload(note._id)}
-              className="flex items-center gap-1 flex-1 bg-green-50 hover:bg-green-100 text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
             >
-              <FiDownload className="w-4 h-4" />
+              <FiDownload size={14} />
               Download
             </button>
+
             <button
-              onClick={() => onEdit(note._id)}
-              className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-sm font-medium transition"
+              onClick={() => onEdit(note)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
             >
-              <FiEdit2 className="w-4 h-4" />
+              <FiEdit size={14} />
+              Edit
             </button>
-            <button
-              onClick={() => onDelete(note._id)}
-              className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition"
-            >
-              <FiTrash2 className="w-4 h-4" />
-            </button>
+
+            {isAdmin && (
+              <button
+                onClick={() => onDelete(note._id)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors ml-auto"
+              >
+                <FiTrash2 size={14} />
+                Delete
+              </button>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </motion.div>
   );
 }
