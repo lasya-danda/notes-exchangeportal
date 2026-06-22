@@ -8,16 +8,16 @@ require('dotenv').config();
 const app = express();
 
 app.use(cors({
-  origin: ['http://localhost:5173'],
+  origin: [
+    'http://localhost:5173',
+    'https://notes-exchangeportal-i7c4ksi21-lasya-dandas-projects.vercel.app'
+  ],
   credentials: true
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static('uploads'));
-app.get('/', (req, res) => {
-  res.send('Notes Exchange Portal Backend Running');
-});
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -29,6 +29,10 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('DB Connected'))
   .catch(err => console.log(err));
 
+app.get('/', (req, res) => {
+  res.send('Notes Exchange Portal Backend Running');
+});
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/notes', require('./routes/noteRoutes'));
 
@@ -37,4 +41,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-app.listen(process.env.PORT, () => console.log('Server running'));
+app.listen(process.env.PORT, () => {
+  console.log('Server running');
+});
