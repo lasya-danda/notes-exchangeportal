@@ -10,7 +10,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://notes-exchangeportal-i7c4ksi21-lasya-dandas-projects.vercel.app'
+    'https://notes-exchangeportal-6ga2v34pi-lasya-dandas-projects.vercel.app'
   ],
   credentials: true
 }));
