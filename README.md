@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Notes Portal
 
 A full-stack web application for managing personal notes with user authentication, drag-and-drop file uploads, and a modern UI.
@@ -144,3 +145,6 @@ notes-portal-final/
 ## License
 
 This project is licensed under the MIT License.
+=======
+# notes-exchange-portal
+>>>>>>> 9263e9ec53b4ccf426c704c5fe1a73b5e5f3e499

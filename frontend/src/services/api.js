@@ -1,16 +1,13 @@
 import axios from "axios";
 import { toast } from "react-toastify";
-
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
   withCredentials: true,
 });
-
 API.interceptors.request.use(
   (config) => config,
   (error) => Promise.reject(error)
 );
-
 API.interceptors.response.use(
   (response) => response,
   (error) => {

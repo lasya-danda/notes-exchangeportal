@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiMail, FiLock, FiUserPlus, FiArrowLeft } from 'react-icons/fi';
 import API from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { toast } from 'react-toastify';
 
 export default function Register() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
